@@ -272,6 +272,13 @@ Use a different output folder or config when needed:
 uv run python scripts/resume_latest.py --output-dir output -cn cir_msiglip
 ```
 
+If training is run from an active Conda environment instead of the repo `.venv`,
+avoid `uv run` and launch the trainer with that same Python:
+
+```bash
+python scripts/resume_latest.py --use-current-python
+```
+
 ### Train Baseline (mSigLIP)
 
 ```bash
