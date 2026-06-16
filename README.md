@@ -187,6 +187,7 @@ The baseline often retrieves visually similar distractors (hard negatives). Our 
 │
 ├── utils/                             # Metrics, visualization, tokenizer utilities
 ├── scripts/                           # Helper scripts for checkpoints/data preparation
+│   ├── resume_latest.py               # Resume from newest output/**/last.ckpt
 ├── experiments/                       # Experiment logs & ablation notes
 ├── reports/                           # Design notes and implementation plans
 ├── changelog/                         # Training/deployment changelogs
@@ -248,6 +249,27 @@ This runs the proposed method: LoRA + mSigLIP + Auxiliary Circle Loss with a war
 
 ```bash
 ./run_full_finetune.sh
+```
+
+### Resume Latest Checkpoint
+
+On the server, if training outputs are saved under the repository root `output/`
+folder, resume from the newest `last.ckpt` with:
+
+```bash
+uv run python scripts/resume_latest.py
+```
+
+Pass the same important Hydra overrides used in the interrupted run:
+
+```bash
+uv run python scripts/resume_latest.py +lora=default trainer.max_epochs=60 dataset.batch_size=24
+```
+
+Use a different output folder or config when needed:
+
+```bash
+uv run python scripts/resume_latest.py --output-dir output -cn cir_msiglip
 ```
 
 ### Train Baseline (mSigLIP)
