@@ -260,7 +260,10 @@ folder, resume from the newest `last.ckpt` with:
 uv run python scripts/resume_latest.py
 ```
 
-Pass the same important Hydra overrides used in the interrupted run:
+The script also reuses Hydra overrides from the selected run's
+`.hydra/overrides.yaml`, so settings such as `+lora=default`, batch size, and
+learning rate are restored automatically. Extra command-line overrides are
+still allowed:
 
 ```bash
 uv run python scripts/resume_latest.py +lora=default trainer.max_epochs=60 dataset.batch_size=24

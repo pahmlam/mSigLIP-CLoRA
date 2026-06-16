@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import subprocess
 import sys
 from pathlib import Path
@@ -32,6 +33,52 @@ def find_latest_checkpoint(output_dir: Path, checkpoint_name: str) -> Path:
         )
 
     return max(candidates, key=lambda path: (path.stat().st_mtime, str(path)))
+
+
+def checkpoint_run_dir(checkpoint_path: Path) -> Path:
+    if checkpoint_path.parent.name == "checkpoints":
+        return checkpoint_path.parent.parent
+    return checkpoint_path.parent
+
+
+def parse_override_line(line: str) -> str | None:
+    value = line.strip()
+    if not value.startswith("- "):
+        return None
+
+    value = value[2:].strip()
+    if not value:
+        return None
+
+    try:
+        parsed = ast.literal_eval(value)
+    except (SyntaxError, ValueError):
+        parsed = value
+
+    if not isinstance(parsed, str):
+        return None
+
+    return parsed.strip()
+
+
+def is_checkpoint_override(override: str) -> bool:
+    normalized = override.lstrip("+")
+    return normalized.startswith("ckpt_path=")
+
+
+def load_run_overrides(run_dir: Path) -> list[str]:
+    overrides_path = run_dir / ".hydra" / "overrides.yaml"
+    if not overrides_path.exists():
+        return []
+
+    overrides = []
+    for line in overrides_path.read_text().splitlines():
+        override = parse_override_line(line)
+        if override is None or is_checkpoint_override(override):
+            continue
+        overrides.append(override)
+
+    return overrides
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -72,6 +119,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print the selected checkpoint and command without starting training.",
     )
+    parser.add_argument(
+        "--no-run-overrides",
+        action="store_true",
+        help="Do not reuse Hydra overrides from the selected run's .hydra/overrides.yaml.",
+    )
     return parser
 
 
@@ -83,6 +135,8 @@ def main() -> int:
     output_dir = resolve_from_root(args.output_dir, root)
     trainer_path = resolve_from_root(args.trainer, root)
     checkpoint_path = find_latest_checkpoint(output_dir, args.checkpoint_name).resolve()
+    run_dir = checkpoint_run_dir(checkpoint_path)
+    run_overrides = [] if args.no_run_overrides else load_run_overrides(run_dir)
 
     if not trainer_path.exists():
         raise FileNotFoundError(f"Trainer entry point does not exist: {trainer_path}")
@@ -93,11 +147,14 @@ def main() -> int:
         str(trainer_path),
         "-cn",
         args.config_name,
+        *run_overrides,
         f"++ckpt_path={checkpoint_path}",
         *hydra_overrides,
     ]
 
     print(f"Selected checkpoint: {checkpoint_path}")
+    if run_overrides:
+        print("Loaded run overrides:", " ".join(run_overrides))
     print("Command:", " ".join(command))
 
     if args.dry_run:
