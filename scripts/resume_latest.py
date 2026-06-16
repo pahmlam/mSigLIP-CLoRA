@@ -93,7 +93,7 @@ def main() -> int:
         str(trainer_path),
         "-cn",
         args.config_name,
-        f"ckpt_path={checkpoint_path}",
+        f"++ckpt_path={checkpoint_path}",
         *hydra_overrides,
     ]
 
